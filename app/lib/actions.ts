@@ -22,7 +22,7 @@ const FormSchema = z.object({
 });
  
 const CreateInvoice = FormSchema.omit({ id: true, date: true });
-
+const UpdateInvoice = FormSchema.omit({ id: true, date: true});
 export type State = {
   errors?: {
     customerId?: string[];
@@ -38,6 +38,16 @@ export async function createInvoice(prevState: State, formData: FormData) {
     amount: formData.get('amount'),
     status: formData.get('status'),
   });
+    // If form validation fails, return errors early. Otherwise, continue.
+    if (!validatedFields.success) {
+      return {
+        errors: validatedFields.error.flatten().fieldErrors,
+        message: 'Missing Fields. Failed to Create Invoice.',
+      };
+    }
+      // Prepare data for insertion into the database
+  const { customerId, amount, status } = validatedFields.data;
+
   const amountInCents = amount * 100;
   const date = new Date().toISOString().split('T')[0];
  
@@ -56,12 +66,13 @@ export async function createInvoice(prevState: State, formData: FormData) {
 }
 
 export async function updateInvoice(id: string, formData: FormData) {
-  const { customerId, amount, status } = UpdateInvoice.parse({
-    customerId
-    : formData.get('customerId'),
-    amount: formData.get('amount'),
-    status: formData.get('status'),
-  });
+    //VALIDATE FORM FIELDS USING ZOD
+    const validatedFields = UpdateInvoice.safeParse({
+      customerId: formData.get('customerId'),
+      amount: formData.get('amount'),
+      status: formData.get('status'),
+    });
+
    // If form validation fails, return errors early. Otherwise, continue.
    if (!validatedFields.success) {
     return {
@@ -69,8 +80,10 @@ export async function updateInvoice(id: string, formData: FormData) {
       message: 'Missing Fields. Failed to Create Invoice.',
     };
   }
-  const amountInCents = amount * 100;
- 
+      //prepare data for update and insertion.
+    const { customerId, amount, status } = validatedFields.data;
+    const amountInCents = amount * 100;
+
   try {
     await sql`
         UPDATE invoices
