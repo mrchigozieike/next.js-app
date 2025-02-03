@@ -1,41 +1,45 @@
-'use client';
+import { Card } from '@/app/ui/dashboard/cards';
+import RevenueChart from '@/app/ui/dashboard/revenue-chart';
+import LatestInvoices from '@/app/ui/dashboard/latest-invoices';
+import { lusitana } from '@/app/ui/fonts';
+import { fetchLatestInvoices, fetchCardData } from '@/app/lib/data';
+import { Suspense } from 'react';
+import { RevenueChartSkeleton, LatestInvoicesSkeleton, CardsSkeleton } from '@/app/ui/skeletons';
 
-import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
-import { useSearchParams, usePathname, useRouter } from 'next/navigation';
-import { useDebouncedCallback } from 'use-debounce';
+interface Invoice {
+  id: string;
+  name: string;
+  email: string;
+  amount: string;
+  image_url: string;
+}
 
-export default function Search({ placeholder }: { placeholder: string }) {
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
-  const { replace } = useRouter();
-
-  // ✅ Define `handleSearch` properly
-  const handleSearch = useDebouncedCallback((term: string) => {
-    console.log(`Searching... ${term}`);
-    const params = new URLSearchParams(searchParams);
-    
-    if (term) {
-      params.set('query', term);
-    } else {
-      params.delete('query');
-    }
-
-    replace(`${pathname}?${params.toString()}`);
-  }, 300);
+export default async function Page() {
+  const latestInvoices: Invoice[] = await fetchLatestInvoices();
+  const {
+    numberOfInvoices,
+    numberOfCustomers,
+    totalPaidInvoices,
+    totalPendingInvoices,
+  } = await fetchCardData();
 
   return (
-    <div className="relative flex flex-1 flex-shrink-0">
-      <label htmlFor="search" className="sr-only">
-        Search
-      </label>
-      <input
-        className="peer block w-full rounded-md border border-gray-200 py-[9px] pl-10 text-sm outline-2 placeholder:text-gray-500"
-        placeholder={placeholder}
-        onChange={(e) => handleSearch(e.target.value)} // ✅ Properly call handleSearch
-        defaultValue={searchParams.get('query')?.toString()}
-      />
-      <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-500 peer-focus:text-gray-900" />
-    </div>
+    <main>
+      <h1 className={`${lusitana.className} mb-4 text-xl md:text-2xl`}>Dashboard</h1>
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <Card title="Collected" value={totalPaidInvoices} type="collected" />
+        <Card title="Pending" value={totalPendingInvoices} type="pending" />
+        <Card title="Total Invoices" value={numberOfInvoices} type="invoices" />
+        <Card title="Total Customers" value={numberOfCustomers} type="customers" />
+      </div>
+      <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-4 lg:grid-cols-8">
+        <Suspense fallback={<RevenueChartSkeleton />}>
+          <RevenueChart />
+        </Suspense>
+        <Suspense fallback={<LatestInvoicesSkeleton />}>
+          <LatestInvoices latestInvoices={latestInvoices} />
+        </Suspense>
+      </div>
+    </main>
   );
-  
 }
